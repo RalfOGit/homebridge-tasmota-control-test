@@ -6,7 +6,6 @@ const CONSTANTS = require('./constants.json');
 let Accessory, Characteristic, Service, Categories, AccessoryUUID;
 let CurrentConsumption, PowerMeasure;
 
-
 class TasmotaDevice extends EventEmitter {
     constructor(api, config) {
         super();
@@ -104,6 +103,8 @@ class TasmotaDevice extends EventEmitter {
             };
         };
         PowerMeasure = new PowerMeasureClass("Power Measure", null);
+
+        this.start();
     };
 
     async start() {
@@ -799,13 +800,13 @@ class TasmotaDevice extends EventEmitter {
                         const sensorLightSensorService = accessory.addService(Service.LightSensor, serviceName, `Power Sensor ${i}`);
                         sensorLightSensorService.addOptionalCharacteristic(Characteristic.ConfiguredName);
                         sensorLightSensorService.setCharacteristic(Characteristic.ConfiguredName, serviceName);
-                        sensorLightSensorService.addOptionalCharacteristic(CurrentConsumption);
-                        sensorLightSensorService.getCharacteristic(CurrentConsumption)
-                            .onGet(async () => {
-                                const value = this.sensorsPower[i];
-                                const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
-                                return value;
-                            });
+                        //sensorLightSensorService.addOptionalCharacteristic(CurrentConsumption);
+                        //sensorLightSensorService.getCharacteristic(CurrentConsumption)
+                        //    .onGet(async () => {
+                        //        const value = this.sensorsPower[i];
+                        //        const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
+                        //        return value;
+                        //    });
                         sensorLightSensorService.getCharacteristic(Characteristic.CurrentAmbientLightLevel)
                             .onGet(async () => {
                                 const value = this.sensorsPower[i];
