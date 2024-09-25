@@ -4,6 +4,7 @@ const EventEmitter = require('events');
 const ImpulseGenerator = require('./impulsegenerator.js');
 const CONSTANTS = require('./constants.json');
 let Accessory, Characteristic, Service, Categories, AccessoryUUID;
+let CurrentPower, PowerMeasure;
 
 class TasmotaDevice extends EventEmitter {
     constructor(api, config) {
@@ -46,6 +47,7 @@ class TasmotaDevice extends EventEmitter {
         this.sensorsCarbonDioxydeCount = 0;
         this.sensorsAmbientLightCount = 0;
         this.sensorsMotionCount = 0;
+        this.sensorsPowerCount = 0;
 
         //variable
         this.startPrepareAccessory = true;
@@ -72,6 +74,38 @@ class TasmotaDevice extends EventEmitter {
                 this.emit('error', `Impulse generator error: ${error}`);
             };
         }).on('state', () => { });
+
+
+        // custom characteristic CurrentPower
+        let CurrentPowerClass = class CurrentPower extends Characteristic {
+            constructor() {
+                //super("Current Power", "00000011-0000-1000-8000-0026BB765291", {
+                super("Current Power", AccessoryUUID.generate("https://github.com/ralfogit"), {
+                    format: Characteristic.Formats.FLOAT,
+                    perms: [Characteristic.Perms.NOTIFY, Characteristic.Perms.PAIRED_READ],
+                    //unit: Characteristic.Units.CELSIUS,
+                    //minValue: -270,
+                    //maxValue: 100,
+                    //minStep: 0.1,
+                });
+                this.value = 0;
+            };
+        };
+        CurrentPower = new CurrentPowerClass();
+
+        //custom service PowerMeasure
+        let PowerMeasureClass = class PowerMeasure extends Service {
+            constructor(displayName, subtype) {
+                super(displayName, "00000048-0000-1000-8000-0026BB765291", subtype);
+                // Required Characteristics
+                this.addCharacteristic(CurrentPower);
+                // Optional Characteristics
+                this.addOptionalCharacteristic(Characteristic.Name);
+            };
+        };
+        PowerMeasure = new PowerMeasureClass("Power Measure", null);
+
+        this.start();
     };
 
     async start() {
@@ -82,7 +116,7 @@ class TasmotaDevice extends EventEmitter {
                 return;
             };
 
-            //check device state 
+            //check device state
             await this.checkDeviceState();
 
             //connect to deice success
@@ -227,6 +261,7 @@ class TasmotaDevice extends EventEmitter {
                 this.sensorsCarbonDioxyde = [];
                 this.sensorsAmbientLight = [];
                 this.sensorsMotion = [];
+                this.sensorsPower = [];
 
                 const sensorTypes = CONSTANTS.SensorKeys;
                 const sensor = Object.entries(sensorsStatus.StatusSNS)
@@ -266,6 +301,7 @@ class TasmotaDevice extends EventEmitter {
                     const voltage = sensorData.Voltage ?? 0;
                     const current = sensorData.Current ?? 0;
                     const load = sensorData.Load ?? 0;
+                    const debug = this.emit('debug', `power: ${power}`);
 
                     //push to array
                     this.sensorsName.push(sensorName);
@@ -280,6 +316,7 @@ class TasmotaDevice extends EventEmitter {
                     const push9 = carbonDioxyde ? this.sensorsCarbonDioxyde.push(carbonDioxyde) : false;
                     const push10 = ambientLight ? this.sensorsAmbientLight.push(ambientLight) : false;
                     const push11 = motion ? this.sensorsMotion.push(motion) : false;
+                    const push12 = power ? this.sensorsPower.push(power) : false;
                 };
 
                 this.time = sensorsStatus.Time ?? '';
@@ -296,6 +333,7 @@ class TasmotaDevice extends EventEmitter {
                 this.sensorsCarbonDioxydeCount = this.sensorsCarbonDioxyde.length;
                 this.sensorsAmbientLightCount = this.sensorsAmbientLight.length;
                 this.sensorsMotionCount = this.sensorsMotion.length;
+                this.sensorsPowerCount = this.sensorsPower.length;
                 this.sensorsCount = this.sensorsName.length;
 
 
@@ -366,6 +404,20 @@ class TasmotaDevice extends EventEmitter {
                         this.sensorMotionServices[i].updateCharacteristic(Characteristic.MotionDetected, state);
                     };
                 };
+
+                if (this.sensorPowerServices) {
+                    for (let i = 0; i < this.sensorsPowerCount; i++) {
+                        const value = this.sensorsPower[i];
+                        //const debug1 = this.emit('message', `service: ${this.sensorPowerServices[i].displayName}`);
+                        const charact = this.sensorPowerServices[i].getCharacteristic(Characteristic.CurrentAmbientLightLevel);
+                        //const debug2 = this.emit('message', `charact: ${charact.displayName}`);
+                        //const debug3 = this.emit('message', `value: ${value}`);
+                        charact.updateValue(value);
+                        const debug = this.emit('message', `update service: ${this.sensorPowerServices[i].displayName}, characteristic: ${charact.displayName}, value: ${value}`);
+                        this.sensorPowerServices[i].updateCharacteristic(Characteristic.CurrentAmbientLightLevel, value);
+                        //this.sensorPowerServices[i].setCharacteristic(Characteristic.CurrentAmbientLightLevel, value);
+                    };
+                }
             };
 
             return true;
@@ -725,6 +777,95 @@ class TasmotaDevice extends EventEmitter {
                         this.sensorMotionServices.push(sensorMotionService);
                     };
                 }
+
+                //power
+                const sensorsPowerCount = this.sensorsPowerCount;
+                if (sensorsPowerCount > 0) {
+                    const debug = this.enableDebugMode ? this.emit('debug', `Prepare Power Sensor Services`) : false;
+                    this.sensorPowerServices = [];
+                    for (let i = 0; i < sensorsPowerCount; i++) {
+                        const sensorName = this.sensorsName[i];
+                        const serviceName = this.sensorsNamePrefix ? `${accessoryName} ${sensorName}.Power` : `${sensorName}.Power`;
+                        //const sensorTemperatureService = accessory.addService(Service.TemperatureSensor, serviceName, `Power Sensor ${i}`);
+                        //sensorTemperatureService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+                        //sensorTemperatureService.setCharacteristic(Characteristic.ConfiguredName, serviceName);
+                        //sensorTemperatureService.getCharacteristic(Characteristic.CurrentTemperature).setProps({ maxValue: 100000 });
+                        //sensorTemperatureService.getCharacteristic(Characteristic.CurrentTemperature)
+                        //    .onGet(async () => {
+                        //        const value = this.sensorsPower[i];
+                        //        const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
+                        //        return value;
+                        //    });
+                        //this.sensorPowerServices.push(sensorTemperatureService);
+
+                        const sensorLightSensorService = accessory.addService(Service.LightSensor, serviceName, `Power Sensor ${i}`);
+                        sensorLightSensorService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+                        sensorLightSensorService.setCharacteristic(Characteristic.ConfiguredName, serviceName);
+                        sensorLightSensorService.getCharacteristic(Characteristic.CurrentAmbientLightLevel)
+                            .onGet(async () => {
+                                const value = this.sensorsPower[i];
+                                const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
+                                return value;
+                            });
+                        this.sensorPowerServices.push(sensorLightSensorService);
+
+                        //const sensorPowerService = accessory.addService(PowerMeasure, serviceName, `Power Sensor ${i}`);
+                        //sensorPowerService.addOptionalCharacteristic(Characteristic.ConfiguredName);
+                        //sensorPowerService.setCharacteristic(Characteristic.ConfiguredName, serviceName);
+                        //sensorPowerService.getCharacteristic(CurrentPower.displayName)
+                        //    .onGet(async () => {
+                        //        const value = this.sensorsPower[i];
+                        //        const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
+                        //        return value;
+                        //    });
+                        //this.sensorPowerServices.push(sensorPowerService);
+                    };
+                }
+
+                ///**
+                // * Service "Temperature Sensor"
+                // */
+                //export class TemperatureSensor extends Service {
+                //
+                //    public static readonly UUID: string = "0000008A-0000-1000-8000-0026BB765291";
+                //
+                //    constructor(displayName?: string, subtype?: string) {
+                //        super(displayName, TemperatureSensor.UUID, subtype);
+                //
+                //        // Required Characteristics
+                //        this.addCharacteristic(Characteristic.CurrentTemperature);
+                //
+                //        // Optional Characteristics
+                //        this.addOptionalCharacteristic(Characteristic.Name);
+                //        this.addOptionalCharacteristic(Characteristic.StatusActive);
+                //        this.addOptionalCharacteristic(Characteristic.StatusFault);
+                //        this.addOptionalCharacteristic(Characteristic.StatusLowBattery);
+                //        this.addOptionalCharacteristic(Characteristic.StatusTampered);
+                //    }
+                //}
+                //Service.TemperatureSensor = TemperatureSensor;
+
+                ///**
+                // * Characteristic "Current Temperature"
+                // */
+                //export class CurrentTemperature extends Characteristic {
+                //
+                //    public static readonly UUID: string = "00000011-0000-1000-8000-0026BB765291";
+                //
+                //    constructor() {
+                //        super("Current Temperature", CurrentTemperature.UUID, {
+                //            format: Formats.FLOAT,
+                //            perms: [Perms.NOTIFY, Perms.PAIRED_READ],
+                //            unit: Units.CELSIUS,
+                //            minValue: -270,
+                //            maxValue: 100,
+                //            minStep: 0.1,
+                //        });
+                //        this.value = this.getDefaultValue();
+                //    }
+                //}
+                //Characteristic.CurrentTemperature = CurrentTemperature;
+
             };
 
             return accessory;
