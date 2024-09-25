@@ -485,9 +485,9 @@ class TasmotaDevice extends EventEmitter {
                                 const relayNr = i + 1;
                                 const powerOn = relaysCount === 1 ? CONSTANTS.ApiCommands.PowerOn : `${CONSTANTS.ApiCommands.Power}${relayNr}${CONSTANTS.ApiCommands.On}`;
                                 const powerOff = relaysCount === 1 ? CONSTANTS.ApiCommands.PowerOff : `${CONSTANTS.ApiCommands.Power}${relayNr}${CONSTANTS.ApiCommands.Off}`;
-                                state = state ? powerOn : powerOff;
+                                const command = state ? powerOn : powerOff;
 
-                                await this.axiosInstance(state);
+                                await this.axiosInstance(command);
                                 const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, set state: ${state ? 'ON' : 'OFF'}`);
                             } catch (error) {
                                 this.emit('warn', `${friendlyName}, set state error: ${error}`);
