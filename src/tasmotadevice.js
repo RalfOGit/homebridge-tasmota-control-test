@@ -477,7 +477,7 @@ class TasmotaDevice extends EventEmitter {
                     switchOutletLightService.getCharacteristic(Characteristic.On)
                         .onGet(async () => {
                             const state = this.powersStete[i] ?? false;
-                            const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, state: ${state ? 'ON' : 'OFF'}`);
+                            const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, i: ${i} this.powersStete[i] ${this.powersStete[i]} state: ${state ? 'ON' : 'OFF'}`);
                             return state;
                         })
                         .onSet(async (state) => {
@@ -488,7 +488,7 @@ class TasmotaDevice extends EventEmitter {
                                 const command = state ? powerOn : powerOff;
 
                                 await this.axiosInstance(command);
-                                const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, set state: ${state ? 'ON' : 'OFF'}`);
+                                const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, relayNr ${relayNr} command ${command} set state: ${state ? 'ON' : 'OFF'}`);
                             } catch (error) {
                                 this.emit('warn', `${friendlyName}, set state error: ${error}`);
                             }
