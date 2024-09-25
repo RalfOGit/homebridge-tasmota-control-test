@@ -4,7 +4,8 @@ const EventEmitter = require('events');
 const ImpulseGenerator = require('./impulsegenerator.js');
 const CONSTANTS = require('./constants.json');
 let Accessory, Characteristic, Service, Categories, AccessoryUUID;
-let CurrentPower, PowerMeasure;
+let CurrentConsumption, PowerMeasure;
+
 
 class TasmotaDevice extends EventEmitter {
     constructor(api, config) {
@@ -76,36 +77,33 @@ class TasmotaDevice extends EventEmitter {
         }).on('state', () => { });
 
 
-        // custom characteristic CurrentPower
-        let CurrentPowerClass = class CurrentPower extends Characteristic {
+        // Eve-proprietary CurrentConsumption characteristic
+        let CurrentConsumptionClass = class CurrentConsumption extends Characteristic {
             constructor() {
-                //super("Current Power", "00000011-0000-1000-8000-0026BB765291", {
-                super("Current Power", AccessoryUUID.generate("https://github.com/ralfogit"), {
+                super("CurrentConsumption", "E863F10D-079E-48FF-8F27-9C2605A29F52", {
                     format: Characteristic.Formats.FLOAT,
-                    perms: [Characteristic.Perms.NOTIFY, Characteristic.Perms.PAIRED_READ],
-                    //unit: Characteristic.Units.CELSIUS,
-                    //minValue: -270,
-                    //maxValue: 100,
-                    //minStep: 0.1,
+                    unit: 'W',
+                    minValue: 0,
+                    maxValue: 12000,
+                    minStep: 0.1,
+                    perms: [Characteristic.Perms.NOTIFY, Characteristic.Perms.PAIRED_READ]
                 });
                 this.value = 0;
             };
         };
-        CurrentPower = new CurrentPowerClass();
+        CurrentConsumption = new CurrentConsumptionClass();
 
         //custom service PowerMeasure
         let PowerMeasureClass = class PowerMeasure extends Service {
             constructor(displayName, subtype) {
                 super(displayName, "00000048-0000-1000-8000-0026BB765291", subtype);
                 // Required Characteristics
-                this.addCharacteristic(CurrentPower);
+                this.addCharacteristic(CurrentConsumption);
                 // Optional Characteristics
                 this.addOptionalCharacteristic(Characteristic.Name);
             };
         };
         PowerMeasure = new PowerMeasureClass("Power Measure", null);
-
-        this.start();
     };
 
     async start() {
@@ -477,7 +475,7 @@ class TasmotaDevice extends EventEmitter {
                     switchOutletLightService.getCharacteristic(Characteristic.On)
                         .onGet(async () => {
                             const state = this.powersStete[i] ?? false;
-                            const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, state: ${state ? 'ON' : 'OFF'}`);
+                            const logInfo = this.disableLogInfo ? false : this.emit('message', `${friendlyName}, state: ${state} ${state ? 'ON' : 'OFF'}`);
                             return state;
                         })
                         .onSet(async (state) => {
@@ -801,6 +799,13 @@ class TasmotaDevice extends EventEmitter {
                         const sensorLightSensorService = accessory.addService(Service.LightSensor, serviceName, `Power Sensor ${i}`);
                         sensorLightSensorService.addOptionalCharacteristic(Characteristic.ConfiguredName);
                         sensorLightSensorService.setCharacteristic(Characteristic.ConfiguredName, serviceName);
+                        sensorLightSensorService.addOptionalCharacteristic(CurrentConsumption);
+                        sensorLightSensorService.getCharacteristic(CurrentConsumption)
+                            .onGet(async () => {
+                                const value = this.sensorsPower[i];
+                                const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
+                                return value;
+                            });
                         sensorLightSensorService.getCharacteristic(Characteristic.CurrentAmbientLightLevel)
                             .onGet(async () => {
                                 const value = this.sensorsPower[i];
@@ -812,7 +817,7 @@ class TasmotaDevice extends EventEmitter {
                         //const sensorPowerService = accessory.addService(PowerMeasure, serviceName, `Power Sensor ${i}`);
                         //sensorPowerService.addOptionalCharacteristic(Characteristic.ConfiguredName);
                         //sensorPowerService.setCharacteristic(Characteristic.ConfiguredName, serviceName);
-                        //sensorPowerService.getCharacteristic(CurrentPower.displayName)
+                        //sensorPowerService.getCharacteristic(CurrentConsumption.displayName)
                         //    .onGet(async () => {
                         //        const value = this.sensorsPower[i];
                         //        const logInfo = this.disableLogInfo ? false : this.emit('message', `sensor: ${sensorName}, power: ${value} W`);
