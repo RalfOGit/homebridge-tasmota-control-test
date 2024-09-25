@@ -1,20 +1,20 @@
 {
-  "displayName": "Tasmota Control",
-  "name": "homebridge-tasmota-control",
+  "displayName": "Tasmota Control-Test",
+  "name": "homebridge-tasmota-control-test",
   "version": "0.11.1",
   "description": "Homebridge plugin to control Tasmota flashed devices.",
   "license": "MIT",
-  "author": "grzegorz914",
+  "author": "ralfogit",
   "maintainers": [
-    "grzegorz914"
+    "ralfogit"
   ],
-  "homepage": "https://github.com/grzegorz914/homebridge-tasmota-control#readme",
+  "homepage": "https://github.com/RalfOGit/homebridge-tasmota-control#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/grzegorz914/homebridge-tasmota-control.git"
+    "url": "git+https://github.com/RalfOGit/homebridge-tasmota-control.git"
   },
   "bugs": {
-    "url": "https://github.com/grzegorz914/homebridge-tasmota-control/issues"
+    "url": "https://github.com/RalfOGit/homebridge-tasmota-control/issues"
   },
   "main": "index.js",
   "files": [
@@ -28,7 +28,7 @@
   ],
   "engines": {
     "homebridge": "^1.6.0 || ^2.0.0-beta.0",
-    "node": "^18.20.4 || ^20.15.1 || ^22.7.0"
+    "node": "^18.13.0 || ^18.20.4 || ^20.15.1 || ^22.7.0"
   },
   "dependencies": {
     "axios": "^1.7.7"
